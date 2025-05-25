@@ -1,0 +1,11 @@
+google-api-python-client
+google-auth-oauthlib
+gradio
+langchain
+langchain-openai
+langchain-chroma
+chromadb
+python-dotenv
+anthropic
+openai
+pydantic
