@@ -1,3 +1,6 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import gradio as gr
 import asyncio
 from typing import List, Dict
@@ -28,9 +31,40 @@ async def analyze_channel(channel_id: str, ai_provider: str) -> tuple[str, str, 
         str(analysis.sentiment_analysis)
     )
 
-async def search_content(query: str) -> List[Dict]:
+async def search_content(query: str) -> tuple[str, str, str]:
     results = await openai_service.search_similar_content(query)
-    return results
+    if not results:
+        return (
+            "No results found",
+            "No Instagram post generated",
+            "No Twitter post generated"
+        )
+    
+    # Get the first result's posts
+    first_result = results[0]
+    
+    # Extract the actual content, removing any markdown headers
+    instagram_post = first_result.get("instagram_post", "")
+    if instagram_post.startswith("###"):
+        instagram_post = instagram_post.replace("### Instagram Post:", "").strip()
+    
+    twitter_post = first_result.get("twitter_post", "")
+    if twitter_post.startswith("###"):
+        twitter_post = twitter_post.replace("### Twitter (X) Post:", "").strip()
+    
+    return (
+        first_result["text"],
+        instagram_post if instagram_post else "No Instagram post generated",
+        twitter_post if twitter_post else "No Twitter post generated"
+    )
+
+def publish_to_instagram(post: str) -> str:
+    # TODO: Implement Instagram publishing logic
+    return f"Post published to Instagram:\n{post}"
+
+def publish_to_twitter(post: str) -> str:
+    # TODO: Implement Twitter publishing logic
+    return f"Post published to Twitter:\n{post}"
 
 # Create Gradio interface
 with gr.Blocks(title="YouTube Channel Analyzer") as demo:
@@ -65,7 +99,26 @@ with gr.Blocks(title="YouTube Channel Analyzer") as demo:
             search_btn = gr.Button("Search")
         
         with gr.Column():
-            search_results = gr.JSON(label="Search Results")
+            search_results = gr.Markdown(label="Search Results")
+    
+    with gr.Row():
+        with gr.Column():
+            instagram_post = gr.Textbox(
+                label="Instagram Post",
+                lines=5,
+                placeholder="Generated Instagram post will appear here..."
+            )
+            instagram_publish_btn = gr.Button("📸 Publish to Instagram")
+            instagram_status = gr.Textbox(label="Instagram Status", interactive=False)
+        
+        with gr.Column():
+            twitter_post = gr.Textbox(
+                label="Twitter (X) Post",
+                lines=3,
+                placeholder="Generated Twitter post will appear here..."
+            )
+            twitter_publish_btn = gr.Button("🐦 Publish to Twitter")
+            twitter_status = gr.Textbox(label="Twitter Status", interactive=False)
     
     # Set up event handlers
     analyze_btn.click(
@@ -77,7 +130,19 @@ with gr.Blocks(title="YouTube Channel Analyzer") as demo:
     search_btn.click(
         fn=search_content,
         inputs=[search_query],
-        outputs=[search_results]
+        outputs=[search_results, instagram_post, twitter_post]
+    )
+    
+    instagram_publish_btn.click(
+        fn=publish_to_instagram,
+        inputs=[instagram_post],
+        outputs=[instagram_status]
+    )
+    
+    twitter_publish_btn.click(
+        fn=publish_to_twitter,
+        inputs=[twitter_post],
+        outputs=[twitter_status]
     )
 
 if __name__ == "__main__":

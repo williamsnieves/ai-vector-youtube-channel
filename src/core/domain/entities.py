@@ -27,4 +27,6 @@ class AnalysisResult(BaseModel):
     summary: str
     recommendations: List[str]
     metrics: str
-    sentiment_analysis: str 
+    sentiment_analysis: str
+    instagram_post: Optional[str] = None
+    twitter_post: Optional[str] = None 
