@@ -7,6 +7,7 @@ from langchain_chroma import Chroma
 from ...domain.interfaces import VectorStoreRepository
 from ...domain.entities import Channel, AnalysisResult
 from config.settings import get_settings
+from openai import AsyncOpenAI
 
 class VectorStoreRepositoryImpl(VectorStoreRepository):
     def __init__(self):
@@ -20,6 +21,8 @@ class VectorStoreRepositoryImpl(VectorStoreRepository):
             chunk_size=1000,
             chunk_overlap=200
         )
+        self.openai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.model = settings.OPENAI_MODEL
 
     def _prepare_channel_text(self, channel: Channel) -> str:
         channel_text = f"""
@@ -97,16 +100,71 @@ class VectorStoreRepositoryImpl(VectorStoreRepository):
             metadatas=metadatas
         )
 
-    async def search_similar_content(self, query: str, limit: int = 5) -> List[Dict]:
-        results = self.chroma_client.similarity_search_with_score(
-            query=query,
-            k=limit
-        )
-        
-        return [
-            {
-                "text": doc.page_content,
-                "metadata": doc.metadata
-            }
-            for doc, _ in results
-        ] 
+    async def search_similar_content(self, query: str) -> List[Dict]:
+        try:
+            # Search in vector store
+            results = self.chroma_client.similarity_search(query, k=1)
+            
+            if not results:
+                return []
+            
+            # Get the first result
+            result = results[0]
+            
+            # Generate social media posts using GPT-4
+            instagram_post = await self._generate_social_media_post(
+                result.page_content,
+                "instagram",
+                "Create an engaging Instagram post to promote this content. Focus on visual appeal and use relevant hashtags. Keep it under 2200 characters."
+            )
+            
+            twitter_post = await self._generate_social_media_post(
+                result.page_content,
+                "twitter",
+                "Create a concise Twitter post to promote this content. Keep it under 280 characters and use relevant hashtags."
+            )
+            
+            return [{
+                "text": result.page_content,
+                "instagram_post": instagram_post,
+                "twitter_post": twitter_post
+            }]
+            
+        except Exception as e:
+            logger.error(f"Error searching similar content: {str(e)}")
+            return []
+
+    async def _generate_social_media_post(self, content: str, platform: str, prompt: str) -> str:
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"""You are an expert social media marketing strategist for {platform}.
+                        Your task is to create engaging content that will drive engagement and followers.
+                        Focus on the specific platform's best practices and format.
+                        Do not include any headers or labels in your response, just the post content."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"""{prompt}
+
+Content to promote:
+{content}"""
+                    }
+                ]
+            )
+            
+            # Clean up the response
+            post = response.choices[0].message.content.strip()
+            # Remove any markdown headers or emojis
+            post = post.replace("###", "").replace("🟡", "").strip()
+            # Remove platform-specific headers
+            post = post.replace("Instagram Post:", "").replace("Twitter (X) Post:", "").strip()
+            
+            return post
+            
+        except Exception as e:
+            logger.error(f"Error generating {platform} post: {str(e)}")
+            return f"Error generating {platform} post" 

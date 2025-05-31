@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from ...domain.interfaces import YouTubeRepository, VectorStoreRepository, AIProvider
 from ...domain.entities import Channel, AnalysisResult
 
@@ -32,8 +32,11 @@ class YouTubeAnalysisService:
         
         return analysis
 
-    async def search_similar_content(self, query: str, limit: int = 5) -> List[dict]:
-        return await self.vector_store_repository.search_similar_content(query, limit)
+    async def search_similar_content(self, query: str) -> List[Dict]:
+        """
+        Search for similar content in the vector store
+        """
+        return await self.vector_store_repository.search_similar_content(query)
 
     async def get_channel_info(self, channel_id: str) -> Channel:
         return await self.youtube_repository.get_channel_info(channel_id) 
