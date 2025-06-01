@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Dict
 from .entities import Channel, Video, AnalysisResult
 
 class YouTubeRepository(ABC):
@@ -25,7 +25,7 @@ class VectorStoreRepository(ABC):
         pass
     
     @abstractmethod
-    async def search_similar_content(self, query: str, limit: int = 5) -> List[dict]:
+    async def search_similar_content(self, query: str) -> List[Dict]:
         pass
 
 class AIProvider(ABC):
@@ -35,4 +35,26 @@ class AIProvider(ABC):
     
     @abstractmethod
     async def generate_recommendations(self, analysis: AnalysisResult) -> List[str]:
+        pass
+
+class InstagramRepository(ABC):
+    @abstractmethod
+    async def publish_post(self, content: str, account: str) -> Dict:
+        """Publish a post to Instagram
+        
+        Args:
+            content: The content to publish
+            account: The Instagram account username to publish to
+        """
+        pass
+
+class TwitterRepository(ABC):
+    @abstractmethod
+    async def publish_post(self, content: str, account: str) -> Dict:
+        """Publish a post to Twitter (X)
+        
+        Args:
+            content: The content to publish
+            account: The Twitter account username to publish to
+        """
         pass 

@@ -1,5 +1,11 @@
 from typing import List, Optional, Dict
-from ...domain.interfaces import YouTubeRepository, VectorStoreRepository, AIProvider
+from ...domain.interfaces import (
+    YouTubeRepository,
+    VectorStoreRepository,
+    AIProvider,
+    InstagramRepository,
+    TwitterRepository
+)
 from ...domain.entities import Channel, AnalysisResult
 
 class YouTubeAnalysisService:
@@ -7,11 +13,15 @@ class YouTubeAnalysisService:
         self,
         youtube_repository: YouTubeRepository,
         vector_store_repository: VectorStoreRepository,
-        ai_provider: AIProvider
+        ai_provider: AIProvider,
+        instagram_repository: InstagramRepository,
+        twitter_repository: TwitterRepository
     ):
         self.youtube_repository = youtube_repository
         self.vector_store_repository = vector_store_repository
         self.ai_provider = ai_provider
+        self.instagram_repository = instagram_repository
+        self.twitter_repository = twitter_repository
 
     async def analyze_channel(self, channel_id: str) -> AnalysisResult:
         # 1. Get channel data from YouTube
@@ -39,4 +49,24 @@ class YouTubeAnalysisService:
         return await self.vector_store_repository.search_similar_content(query)
 
     async def get_channel_info(self, channel_id: str) -> Channel:
-        return await self.youtube_repository.get_channel_info(channel_id) 
+        return await self.youtube_repository.get_channel_info(channel_id)
+
+    async def publish_to_instagram(self, content: str, account: str) -> Dict:
+        """
+        Publish content to Instagram
+        
+        Args:
+            content: The content to publish
+            account: The Instagram account username to publish to
+        """
+        return await self.instagram_repository.publish_post(content, account)
+
+    async def publish_to_twitter(self, content: str, account: str) -> Dict:
+        """
+        Publish content to Twitter (X)
+        
+        Args:
+            content: The content to publish
+            account: The Twitter account username to publish to
+        """
+        return await self.twitter_repository.publish_post(content, account) 

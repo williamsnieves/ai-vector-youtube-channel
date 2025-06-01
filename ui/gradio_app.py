@@ -6,6 +6,7 @@ import asyncio
 from typing import List, Dict
 from src.core.infrastructure.repositories.youtube_repository import YouTubeRepositoryImpl
 from src.core.infrastructure.repositories.vector_store_repository import VectorStoreRepositoryImpl
+from src.core.infrastructure.repositories.social_media_repositories import InstagramRepositoryImpl, TwitterRepositoryImpl
 from src.core.infrastructure.ai_providers.openai_provider import OpenAIProvider
 from src.core.infrastructure.ai_providers.anthropic_provider import AnthropicProvider
 from src.core.application.services.youtube_service import YouTubeAnalysisService
@@ -13,12 +14,26 @@ from src.core.application.services.youtube_service import YouTubeAnalysisService
 # Initialize services
 youtube_repo = YouTubeRepositoryImpl()
 vector_store_repo = VectorStoreRepositoryImpl()
+instagram_repo = InstagramRepositoryImpl()
+twitter_repo = TwitterRepositoryImpl()
 openai_provider = OpenAIProvider()
 anthropic_provider = AnthropicProvider()
 
 # Create service instances for both AI providers
-openai_service = YouTubeAnalysisService(youtube_repo, vector_store_repo, openai_provider)
-anthropic_service = YouTubeAnalysisService(youtube_repo, vector_store_repo, anthropic_provider)
+openai_service = YouTubeAnalysisService(
+    youtube_repo,
+    vector_store_repo,
+    openai_provider,
+    instagram_repo,
+    twitter_repo
+)
+anthropic_service = YouTubeAnalysisService(
+    youtube_repo,
+    vector_store_repo,
+    anthropic_provider,
+    instagram_repo,
+    twitter_repo
+)
 
 async def analyze_channel(channel_id: str, ai_provider: str) -> tuple[str, str, str, str]:
     service = openai_service if ai_provider == "GPT-4" else anthropic_service
@@ -42,29 +57,19 @@ async def search_content(query: str) -> tuple[str, str, str]:
     
     # Get the first result's posts
     first_result = results[0]
-    
-    # Extract the actual content, removing any markdown headers
-    instagram_post = first_result.get("instagram_post", "")
-    if instagram_post.startswith("###"):
-        instagram_post = instagram_post.replace("### Instagram Post:", "").strip()
-    
-    twitter_post = first_result.get("twitter_post", "")
-    if twitter_post.startswith("###"):
-        twitter_post = twitter_post.replace("### Twitter (X) Post:", "").strip()
-    
     return (
         first_result["text"],
-        instagram_post if instagram_post else "No Instagram post generated",
-        twitter_post if twitter_post else "No Twitter post generated"
+        first_result.get("instagram_post", "No Instagram post generated"),
+        first_result.get("twitter_post", "No Twitter post generated")
     )
 
-def publish_to_instagram(post: str) -> str:
-    # TODO: Implement Instagram publishing logic
-    return f"Post published to Instagram:\n{post}"
+async def publish_to_instagram(post: str, account: str) -> str:
+    result = await openai_service.publish_to_instagram(post, account)
+    return f"Status: {result['message']}"
 
-def publish_to_twitter(post: str) -> str:
-    # TODO: Implement Twitter publishing logic
-    return f"Post published to Twitter:\n{post}"
+async def publish_to_twitter(post: str, account: str) -> str:
+    result = await openai_service.publish_to_twitter(post, account)
+    return f"Status: {result['message']}"
 
 # Create Gradio interface
 with gr.Blocks(title="YouTube Channel Analyzer") as demo:
@@ -103,21 +108,43 @@ with gr.Blocks(title="YouTube Channel Analyzer") as demo:
     
     with gr.Row():
         with gr.Column():
+            gr.Markdown("### Instagram Configuration")
+            instagram_account = gr.Textbox(
+                label="Instagram Account",
+                placeholder="Enter Instagram account username (e.g., @your_account)"
+            )
+            instagram_auth_btn = gr.Button("🔐 Connect Instagram Account")
+            instagram_auth_status = gr.Textbox(
+                label="Instagram Connection Status",
+                value="Not connected",
+                interactive=False
+            )
             instagram_post = gr.Textbox(
                 label="Instagram Post",
                 lines=5,
                 placeholder="Generated Instagram post will appear here..."
             )
-            instagram_publish_btn = gr.Button("📸 Publish to Instagram")
+            instagram_publish_btn = gr.Button("📸 Publish to Instagram", interactive=False)
             instagram_status = gr.Textbox(label="Instagram Status", interactive=False)
         
         with gr.Column():
+            gr.Markdown("### Twitter (X) Configuration")
+            twitter_account = gr.Textbox(
+                label="Twitter Account",
+                placeholder="Enter Twitter account username (e.g., @your_account)"
+            )
+            twitter_auth_btn = gr.Button("🔐 Connect Twitter Account")
+            twitter_auth_status = gr.Textbox(
+                label="Twitter Connection Status",
+                value="Not connected",
+                interactive=False
+            )
             twitter_post = gr.Textbox(
                 label="Twitter (X) Post",
                 lines=3,
                 placeholder="Generated Twitter post will appear here..."
             )
-            twitter_publish_btn = gr.Button("🐦 Publish to Twitter")
+            twitter_publish_btn = gr.Button("🐦 Publish to Twitter", interactive=False)
             twitter_status = gr.Textbox(label="Twitter Status", interactive=False)
     
     # Set up event handlers
@@ -133,15 +160,43 @@ with gr.Blocks(title="YouTube Channel Analyzer") as demo:
         outputs=[search_results, instagram_post, twitter_post]
     )
     
+    async def connect_instagram(account: str) -> tuple[str, bool]:
+        try:
+            # TODO: Implement actual Instagram OAuth flow
+            # For now, just return a mock response
+            return f"Connected to {account}", True
+        except Exception as e:
+            return f"Error connecting to Instagram: {str(e)}", False
+    
+    async def connect_twitter(account: str) -> tuple[str, bool]:
+        try:
+            # TODO: Implement actual Twitter OAuth flow
+            # For now, just return a mock response
+            return f"Connected to {account}", True
+        except Exception as e:
+            return f"Error connecting to Twitter: {str(e)}", False
+    
+    instagram_auth_btn.click(
+        fn=connect_instagram,
+        inputs=[instagram_account],
+        outputs=[instagram_auth_status, instagram_publish_btn]
+    )
+    
+    twitter_auth_btn.click(
+        fn=connect_twitter,
+        inputs=[twitter_account],
+        outputs=[twitter_auth_status, twitter_publish_btn]
+    )
+    
     instagram_publish_btn.click(
         fn=publish_to_instagram,
-        inputs=[instagram_post],
+        inputs=[instagram_post, instagram_account],
         outputs=[instagram_status]
     )
     
     twitter_publish_btn.click(
         fn=publish_to_twitter,
-        inputs=[twitter_post],
+        inputs=[twitter_post, twitter_account],
         outputs=[twitter_status]
     )
 

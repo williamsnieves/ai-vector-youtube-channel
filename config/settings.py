@@ -20,6 +20,17 @@ class Settings(BaseSettings):
     # Vector Store
     CHROMA_PERSIST_DIRECTORY: str = "data/chroma"
     
+    # Instagram API settings
+    INSTAGRAM_API_KEY: str = ""
+    INSTAGRAM_API_SECRET: str = ""
+    INSTAGRAM_ACCESS_TOKEN: str = ""
+    
+    # Twitter API settings
+    TWITTER_API_KEY: str = ""
+    TWITTER_API_SECRET: str = ""
+    TWITTER_ACCESS_TOKEN: str = ""
+    TWITTER_ACCESS_TOKEN_SECRET: str = ""
+    
     class Config:
         env_file = ".env"
 
